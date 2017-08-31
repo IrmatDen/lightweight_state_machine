@@ -83,9 +83,9 @@ namespace lightweight_state_machine
 
 	   self_type& operator<<(const state &initial_state)
 	   {
-		   assert(initial_state_ == nullptr);
-		   initial_state_ = &initial_state;
-		   return *this;
+           assert(initial_state_ == nullptr);
+           initial_state_ = &initial_state;
+           return *this;
 	   }
 
         template <typename TransitionEventType>
@@ -121,7 +121,7 @@ namespace lightweight_state_machine
 
     private:
         bool is_running_;
-		const state *initial_state_, *current_state_;
+        const state *initial_state_, *current_state_;
         transitions transitions_;
     };
 
