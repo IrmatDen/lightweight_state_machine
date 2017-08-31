@@ -64,6 +64,24 @@ TEST(lightweight_state_machine_test, external_transition_test) {
     EXPECT_TRUE(second_state_entered);
 }
 
+TEST(lightweight_state_machine_test, transition_from_state) {
+    bool first_state_left = false,
+        second_state_entered = false;
+    lsm::machine<char> sm;
+
+    const lsm::state init  = lsm::state().on_enter([&sm]() { sm.notify('q'); })
+                                         .on_leave([&first_state_left]() { first_state_left = true;     }),
+                     final = lsm::state().on_enter([&second_state_entered]() { second_state_entered = true; });
+
+    sm << init
+        << (init | final)['q'];
+
+    sm.start();
+
+    EXPECT_TRUE(first_state_left);
+    EXPECT_TRUE(second_state_entered);
+}
+
 TEST(lightweight_state_machine_test, guarded_transition_accepted) {
     bool guard_executed = false,
          final_state_entered = false;
