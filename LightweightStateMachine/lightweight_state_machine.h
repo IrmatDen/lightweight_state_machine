@@ -1,6 +1,7 @@
 #ifndef LIGHTWEIGHT_STATE_MACHINE_H
 #define LIGHTWEIGHT_STATE_MACHINE_H
 
+#include <cassert>
 #include <functional>
 #include <map>
 #include <type_traits>
@@ -69,7 +70,17 @@ namespace lightweight_state_machine
         typedef std::multimap<std::pair<event_type, const state*>, transition<event_type>> transitions;
 
    public:
-       machine() : current_state_(nullptr) {}
+       machine() : initial_state_(nullptr), current_state_(nullptr) {}
+	   machine(const machine&) = default;
+	   machine& operator=(const machine&) = default;
+	   ~machine() = default;
+
+	   self_type& operator<<(const state &initial_state)
+	   {
+		   assert(initial_state_ == nullptr, "An initial state has already been defined");
+		   initial_state_ = &initial_state;
+		   return *this;
+	   }
 
         template <typename TransitionEventType>
         self_type& operator<<(transition<TransitionEventType> &t) 
@@ -79,8 +90,8 @@ namespace lightweight_state_machine
             return *this;
         }
 
-        void start(const state *init) { current_state_ = init; current_state_->enter(); }
-        void stop()                   { if (current_state_ != nullptr) current_state_->leave(); }
+        void start()	{ current_state_ = initial_state_; current_state_->enter(); }
+        void stop()     { if (current_state_ != nullptr) current_state_->leave(); }
 
         void notify(const event_type &event)
         {
@@ -99,7 +110,7 @@ namespace lightweight_state_machine
         }
 
     private:
-        const state* current_state_;
+		const state *initial_state_, *current_state_;
         transitions transitions_;
     };
 
