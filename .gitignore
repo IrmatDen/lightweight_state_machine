@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+
+# Misc
+*.pdb
+*.ilk
+*.idb
+*.log
+*.tlog
+*.lastbuildstate
+*.user
+packages/*
+Debug/*
+Release/*
+*.CopyComplete
+
