@@ -42,5 +42,7 @@
 packages/*
 Debug/*
 Release/*
+.vs/*
+x64/*
 *.CopyComplete
 

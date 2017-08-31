@@ -91,7 +91,7 @@ TEST(lightweight_state_machine_test, guarded_transition_accepted) {
 
     lsm::machine<char> sm;
     sm << init
-	   << (init | final)['q'] / [&guard_executed]() { guard_executed = true; return true; };
+	   << (init | final)['q'] ([&guard_executed]() { guard_executed = true; return true; });
 
     sm.start();
     sm.notify('q');
@@ -109,7 +109,7 @@ TEST(lightweight_state_machine_test, guarded_transition_denied) {
 
     lsm::machine<char> sm;
     sm << init
-	   << (init | final)['q'] / [&guard_executed]() { guard_executed = true; return false; };
+	   << (init | final)['q'] ([&guard_executed]() { guard_executed = true; return false; });
 
     sm.start();
     sm.notify('q');
@@ -128,8 +128,8 @@ TEST(lightweight_state_machine_test, shared_trigger) {
 
     lsm::machine<char> sm;
     sm << init
-       << (init | final_invalid) ['q'] / []() { return false; }
-       << (init | final_valid)   ['q'] / []() { return true; };
+       << (init | final_invalid) ['q'] ([]() { return false; })
+       << (init | final_valid)   ['q'] ([]() { return true; } );
 
     sm.start();
     sm.notify('q');
@@ -164,10 +164,10 @@ TEST(lightweight_state_machine_test, multi_state_with_guards_tests) {
 
     sm << standard
        << (standard    | caps_locked)  [Event::caps_lock_pressed]
-       << (standard    | standard)     [Event::key_pressed] / keys_remaining
-       << (standard    | broken)       [Event::key_pressed] / too_many_keys_pressed
-       << (caps_locked | caps_locked)  [Event::key_pressed] / keys_remaining
-       << (caps_locked | broken)       [Event::key_pressed] / too_many_keys_pressed;
+       << (standard    | standard)     [Event::key_pressed] (keys_remaining)
+       << (standard    | broken)       [Event::key_pressed] (too_many_keys_pressed)
+       << (caps_locked | caps_locked)  [Event::key_pressed] (keys_remaining)
+       << (caps_locked | broken)       [Event::key_pressed] (too_many_keys_pressed);
 
     std::random_device rd;
     std::mt19937 generator(rd());

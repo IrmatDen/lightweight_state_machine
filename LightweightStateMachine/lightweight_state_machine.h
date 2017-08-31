@@ -45,7 +45,7 @@ namespace lightweight_state_machine
         {
         }
 
-        self_type& operator/ (guard_func g) { guard_ = g; return *this; }
+        self_type& operator() (guard_func g) { guard_ = g; return *this; }
 
         const state& from() const { return from_; }
         const state& to() const { return to_; }
