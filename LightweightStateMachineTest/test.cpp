@@ -137,3 +137,52 @@ TEST(lightweight_state_machine_test, shared_trigger) {
     EXPECT_TRUE(valid_final_state);
     EXPECT_FALSE(invalid_final_state);
 }
+
+TEST(lightweight_state_machine_test, multi_state_with_guards_tests) {
+    // Taken from example on wikipedia: https://en.wikipedia.org/wiki/UML_state_machine#/media/File:UML_state_machine_Fig2.png
+    /* Sum-up if image is unavailable:
+     * - "keyboard" emulator state machine that stops running after 1000 keys have been pressed
+     * - keyboard can be caps locked (doesn't count as a key press)
+     * - 2 states: default (here called "standard" to avoid keyword conflict) and caps_locked
+     * - states are plugged to themselves and to the final state (implemented as a 'broken' state here)
+     * - transitions are guarded by the total number of keys pressed
+     */
+    
+    enum class Event { key_pressed, caps_lock_pressed };
+    unsigned int remaining_keys_count = 1000;
+    bool is_broken = false;
+
+    lsm::machine<Event> sm;
+
+    const lsm::state standard     = lsm::state(),
+                      caps_locked = lsm::state(),
+                      broken      = lsm::state().on_enter([&is_broken, &sm]() { is_broken = true; sm.stop(); });
+
+    auto too_many_keys_pressed = [&remaining_keys_count]() { return remaining_keys_count == 0; };
+    // Waiting for wider acceptance of std::not_fn...
+    auto keys_remaining = [&remaining_keys_count]() { return remaining_keys_count > 0; };
+
+    sm << standard
+       << (standard    | caps_locked)  [Event::caps_lock_pressed]
+       << (standard    | standard)     [Event::key_pressed] / keys_remaining
+       << (standard    | broken)       [Event::key_pressed] / too_many_keys_pressed
+       << (caps_locked | caps_locked)  [Event::key_pressed] / keys_remaining
+       << (caps_locked | broken)       [Event::key_pressed] / too_many_keys_pressed;
+
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_int_distribution<> distributor(0, 10); // 10% chances of pressing caps lock
+    sm.start();
+    while (sm.is_running())
+    {
+        const Event e = distributor(generator) == 0 ? Event::caps_lock_pressed : Event::key_pressed;
+        sm.notify(e);
+
+        if (e == Event::key_pressed && remaining_keys_count > 0) {
+            remaining_keys_count--;
+        }
+    }
+
+    EXPECT_EQ(remaining_keys_count, 0);
+    EXPECT_TRUE(is_broken);
+}

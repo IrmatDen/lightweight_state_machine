@@ -5,4 +5,7 @@
 
 #pragma once
 
+#include <functional>
+#include <random>
+
 #include "gtest/gtest.h"

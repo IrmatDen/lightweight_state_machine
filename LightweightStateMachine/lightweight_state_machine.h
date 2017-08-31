@@ -70,7 +70,7 @@ namespace lightweight_state_machine
         typedef std::multimap<std::pair<event_type, const state*>, transition<event_type>> transitions;
 
    public:
-       machine() : initial_state_(nullptr), current_state_(nullptr) {}
+       machine() : is_running_(false), initial_state_(nullptr), current_state_(nullptr) {}
 	   machine(const machine&) = default;
 	   machine& operator=(const machine&) = default;
 	   ~machine() = default;
@@ -90,8 +90,11 @@ namespace lightweight_state_machine
             return *this;
         }
 
-        void start()	{ current_state_ = initial_state_; current_state_->enter(); }
-        void stop()     { if (current_state_ != nullptr) current_state_->leave(); }
+        void start()	{ current_state_ = initial_state_; is_running_ = true; current_state_->enter(); }
+        void stop()     { if (current_state_ != nullptr) current_state_->leave(); is_running_ = false; }
+
+        bool is_running() const { return is_running_; }
+        bool is_stopped() const { return !is_running(); }
 
         void notify(const event_type &event)
         {
@@ -110,6 +113,7 @@ namespace lightweight_state_machine
         }
 
     private:
+        bool is_running_;
 		const state *initial_state_, *current_state_;
         transitions transitions_;
     };
