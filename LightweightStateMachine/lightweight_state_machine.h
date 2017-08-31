@@ -12,6 +12,7 @@ namespace lightweight_state_machine
     typedef std::function<void()> enter_func;
     typedef std::function<void()> leave_func;
     typedef std::function<bool()> guard_func;
+    typedef std::function<void()> action_func;
 
     class state
     {
@@ -38,6 +39,7 @@ namespace lightweight_state_machine
     public:
         typedef Event event_type;
         typedef transition<event_type> self_type;
+        typedef std::vector<action_func> actions;
 
     public:
         transition(const state &from, const state &to, const event_type &on_this_event)
@@ -45,17 +47,21 @@ namespace lightweight_state_machine
         {
         }
 
-        self_type& operator() (guard_func g) { guard_ = g; return *this; }
+        self_type& operator() (guard_func g) { guard_ = std::move(g); return *this; }
+        self_type& operator/ (action_func a) { actions_.push_back(std::move(a)); return *this; }
 
         const state& from() const { return from_; }
         const state& to() const { return to_; }
         const event_type& get_event() const { return on_this_event_; }
         bool check_guard() const { return !guard_ || guard_(); }
+        void invoke_actions() const { for(auto &a : actions_) { a(); } }
 
     private:
         const state &from_, &to_;
         event_type on_this_event_;
         guard_func guard_;
+        actions actions_;
+
     };
 
     template <typename Event>
@@ -77,7 +83,7 @@ namespace lightweight_state_machine
 
 	   self_type& operator<<(const state &initial_state)
 	   {
-		   assert(initial_state_ == nullptr, "An initial state has already been defined");
+		   assert(initial_state_ == nullptr);
 		   initial_state_ = &initial_state;
 		   return *this;
 	   }
@@ -105,6 +111,7 @@ namespace lightweight_state_machine
                 if (it->second.check_guard())
                 {
                     if (current_state_ != nullptr) current_state_->leave();
+                    it->second.invoke_actions();
                     current_state_ = &it->second.to();
                     if (current_state_ != nullptr) current_state_->enter();
                     break;

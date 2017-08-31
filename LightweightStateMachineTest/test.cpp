@@ -47,7 +47,7 @@ TEST(lightweight_state_machine_test, single_state_leave_is_called) {
 }
 
 TEST(lightweight_state_machine_test, external_transition_test) {
-    bool first_state_left = false,
+    bool first_state_left     = false,
          second_state_entered = false;
 
     const lsm::state init  = lsm::state().on_leave([&first_state_left]    () { first_state_left = true;     }),
@@ -55,7 +55,7 @@ TEST(lightweight_state_machine_test, external_transition_test) {
 
     lsm::machine<char> sm;
 	sm << init
-       << (init | final)['q'];
+       << (init | final) ['q'];
 
     sm.start();
     sm.notify('q');
@@ -66,7 +66,7 @@ TEST(lightweight_state_machine_test, external_transition_test) {
 
 TEST(lightweight_state_machine_test, transition_from_state) {
     bool first_state_left = false,
-        second_state_entered = false;
+         second_state_entered = false;
     lsm::machine<char> sm;
 
     const lsm::state init  = lsm::state().on_enter([&sm]() { sm.notify('q'); })
@@ -74,7 +74,7 @@ TEST(lightweight_state_machine_test, transition_from_state) {
                      final = lsm::state().on_enter([&second_state_entered]() { second_state_entered = true; });
 
     sm << init
-        << (init | final)['q'];
+       << (init | final) ['q'];
 
     sm.start();
 
@@ -86,12 +86,12 @@ TEST(lightweight_state_machine_test, guarded_transition_accepted) {
     bool guard_executed = false,
          final_state_entered = false;
 
-    const lsm::state init = lsm::state(),
+    const lsm::state init  = lsm::state(),
                      final = lsm::state().on_enter([&final_state_entered]() { final_state_entered = true; });
 
     lsm::machine<char> sm;
     sm << init
-	   << (init | final)['q'] ([&guard_executed]() { guard_executed = true; return true; });
+	   << (init | final) ['q'] ([&guard_executed]() { guard_executed = true; return true; });
 
     sm.start();
     sm.notify('q');
@@ -102,14 +102,14 @@ TEST(lightweight_state_machine_test, guarded_transition_accepted) {
 
 TEST(lightweight_state_machine_test, guarded_transition_denied) {
     bool guard_executed = false,
-        final_state_entered = false;
+         final_state_entered = false;
 
-    const lsm::state init = lsm::state(),
+    const lsm::state init  = lsm::state(),
                      final = lsm::state().on_enter([&final_state_entered]() { final_state_entered = true; });
 
     lsm::machine<char> sm;
     sm << init
-	   << (init | final)['q'] ([&guard_executed]() { guard_executed = true; return false; });
+	   << (init | final) ['q'] ([&guard_executed]() { guard_executed = true; return false; });
 
     sm.start();
     sm.notify('q');
@@ -129,13 +129,48 @@ TEST(lightweight_state_machine_test, shared_trigger) {
     lsm::machine<char> sm;
     sm << init
        << (init | final_invalid) ['q'] ([]() { return false; })
-       << (init | final_valid)   ['q'] ([]() { return true; } );
+       << (init | final_valid)   ['q'] ([]() { return true ; });
 
     sm.start();
     sm.notify('q');
 
     EXPECT_TRUE(valid_final_state);
     EXPECT_FALSE(invalid_final_state);
+}
+
+TEST(lightweight_state_machine_test, transition_with_one_action) {
+    bool action_called = false;
+    lsm::machine<char> sm;
+
+    const lsm::state init  = lsm::state(),
+                     final = lsm::state();
+
+    sm << init
+       << (init | final) ['q'] / [&action_called] () { action_called = true; };
+
+    sm.start();
+    sm.notify('q');
+
+    EXPECT_TRUE(action_called);
+}
+
+TEST(lightweight_state_machine_test, transition_with_multiple_actions) {
+    bool action_1_called = false,
+         action_2_called = false;
+    lsm::machine<char> sm;
+
+    const lsm::state init  = lsm::state(),
+                     final = lsm::state();
+
+    sm << init
+       << (init | final) ['q'] / [&action_1_called] () { action_1_called = true; }
+                               / [&action_2_called] () { action_2_called = true; };
+
+    sm.start();
+    sm.notify('q');
+
+    EXPECT_TRUE(action_1_called);
+    EXPECT_TRUE(action_2_called);
 }
 
 TEST(lightweight_state_machine_test, multi_state_with_guards_tests) {
@@ -164,25 +199,30 @@ TEST(lightweight_state_machine_test, multi_state_with_guards_tests) {
 
     sm << standard
        << (standard    | caps_locked)  [Event::caps_lock_pressed]
-       << (standard    | standard)     [Event::key_pressed] (keys_remaining)
+       << (caps_locked | standard)     [Event::caps_lock_pressed]
+       << (standard    | standard)     [Event::key_pressed] (keys_remaining) / [&remaining_keys_count]() { remaining_keys_count--; }
+       << (caps_locked | caps_locked)  [Event::key_pressed] (keys_remaining) / [&remaining_keys_count]() { remaining_keys_count--; }
        << (standard    | broken)       [Event::key_pressed] (too_many_keys_pressed)
-       << (caps_locked | caps_locked)  [Event::key_pressed] (keys_remaining)
        << (caps_locked | broken)       [Event::key_pressed] (too_many_keys_pressed);
 
     std::random_device rd;
     std::mt19937 generator(rd());
     std::uniform_int_distribution<> distributor(0, 10); // 10% chances of pressing caps lock
     sm.start();
-    while (sm.is_running())
+
+    // Used as a guard against looping indefinitely
+    size_t loop_exec_count = 0;
+    while (sm.is_running() && loop_exec_count < 1001)
     {
         const Event e = distributor(generator) == 0 ? Event::caps_lock_pressed : Event::key_pressed;
         sm.notify(e);
 
-        if (e == Event::key_pressed && remaining_keys_count > 0) {
-            remaining_keys_count--;
+        if (e == Event::key_pressed) {
+            loop_exec_count++;
         }
     }
 
+    EXPECT_EQ(loop_exec_count, 1001);
     EXPECT_EQ(remaining_keys_count, 0);
     EXPECT_TRUE(is_broken);
 }
